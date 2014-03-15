@@ -1,0 +1,1 @@
+http://jhipster.github.io/
