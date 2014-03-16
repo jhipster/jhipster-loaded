@@ -1,0 +1,2 @@
+Premain-Class: org.springsource.loaded.agent.SpringLoadedAgent
+Agent-Class: org.springsource.loaded.agent.SpringLoadedAgent
