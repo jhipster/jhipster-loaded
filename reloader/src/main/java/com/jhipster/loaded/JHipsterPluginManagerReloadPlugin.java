@@ -3,7 +3,6 @@ package com.jhipster.loaded;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.core.env.Environment;
 import org.springsource.loaded.Plugins;
 import org.springsource.loaded.ReloadEventProcessorPlugin;
 
@@ -19,7 +18,7 @@ import org.springsource.loaded.ReloadEventProcessorPlugin;
  * </p>
  * <p>
  *   To have Spring Loaded working, run your Application class with these VM options: 
- *   "-javaagent:spring_loaded/springloaded.jar -noverify -Dspringloaded=plugins=com.jhipster.loaded.config.reload.instrument.JHipsterLoadtimeInstrumentationPlugin"
+ *   "-javaagent:spring_loaded/springloaded-jhipster.jar -noverify "
  * </p>
  */
 public class JHipsterPluginManagerReloadPlugin implements ReloadEventProcessorPlugin {
@@ -28,13 +27,19 @@ public class JHipsterPluginManagerReloadPlugin implements ReloadEventProcessorPl
 
     private static JHipsterReloaderThread jHipsterReloaderThread;
 
+    private String projectPackageName;
+
+    public JHipsterPluginManagerReloadPlugin(ConfigurableApplicationContext ctx) {
+        projectPackageName = ctx.getEnvironment().getProperty("hotReload.package.project");
+    }
+
     @Override
     public boolean shouldRerunStaticInitializer(String typename, Class<?> aClass, String encodedTimestamp) {
         return true;
     }
 
     public void reloadEvent(String typename, Class<?> clazz, String encodedTimestamp) {
-        if (!typename.startsWith("com.jhipster.loaded")) {
+        if (!typename.startsWith(projectPackageName)) {
             log.trace("This class is not in the application package, nothing to do");
             return;
         }
@@ -46,13 +51,9 @@ public class JHipsterPluginManagerReloadPlugin implements ReloadEventProcessorPl
     }
 
     public static void register(ConfigurableApplicationContext ctx, ClassLoader classLoader) {
-        Environment env = ctx.getEnvironment();
-
-        if (env.getProperty("hotReload.enabled", Boolean.class, false)) {
-            jHipsterReloaderThread = new JHipsterReloaderThread(ctx);
-            JHipsterReloaderThread.register(jHipsterReloaderThread);
-            JHipsterFileSystemWatcher.register(classLoader, ctx);
-            Plugins.registerGlobalPlugin(new JHipsterPluginManagerReloadPlugin());
-        }
+        jHipsterReloaderThread = new JHipsterReloaderThread(ctx);
+        JHipsterReloaderThread.register(jHipsterReloaderThread);
+        JHipsterFileSystemWatcher.register(classLoader, ctx);
+        Plugins.registerGlobalPlugin(new JHipsterPluginManagerReloadPlugin(ctx));
     }
 }

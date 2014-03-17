@@ -25,13 +25,16 @@ public class JHipsterReloaderThread implements Runnable {
 
     private static Logger log = LoggerFactory.getLogger(JHipsterReloaderThread.class);
 
-    private static Object lock = new Object();
+    private static final Object lock = new Object();
 
     public static boolean isStarted;
 
     private static boolean hotReloadTriggered = false;
 
     private static boolean isWaitingForNewClasses = false;
+
+    private String domainPackageName;
+    private String dtoPackageName;
 
     /**
      * How long does the thread wait until running a new batch.
@@ -84,6 +87,8 @@ public class JHipsterReloaderThread implements Runnable {
     private List<Class> dtos = new ArrayList<>();
 
     public JHipsterReloaderThread(ConfigurableApplicationContext applicationContext) {
+        domainPackageName = applicationContext.getEnvironment().getProperty("hotReload.package.domain");
+        dtoPackageName = applicationContext.getEnvironment().getProperty("hotReload.package.restdto");
         isStarted = true;
         springReloader = new SpringReloader(applicationContext);
         springReloader.afterPropertiesSet();
@@ -114,14 +119,14 @@ public class JHipsterReloaderThread implements Runnable {
                 log.trace("{} is a Spring Component", typename);
                 components.add(clazz);
                 startReloading = true;
-            } else if (typename.startsWith("com.jhipster.loaded.domain")) {
+            } else if (typename.startsWith(domainPackageName)) {
                 log.trace("{} is in the JPA package, checking if it is an entity", typename);
                 if (AnnotationUtils.findAnnotation(clazz, Entity.class) != null) {
                     log.trace("{} is a JPA Entity", typename);
                     entities.add(clazz);
                     startReloading = true;
                 }
-            } else if (typename.startsWith("com.jhipster.loaded.web.rest.dto")) {
+            } else if (typename.startsWith(dtoPackageName)) {
                 log.debug("{}  is a REST DTO", typename);
                 dtos.add(clazz);
                 startReloading = true;

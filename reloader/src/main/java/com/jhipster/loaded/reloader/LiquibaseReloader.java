@@ -62,8 +62,7 @@ public class LiquibaseReloader {
     public void reloadEvent(List<Class> entities) {
         log.debug("Hot reloading JPA & Liquibase classes");
         try {
-            // TODO - to change
-            final String packagesToScan = "com.jhipster.loaded.domain";
+            final String packagesToScan = applicationContext.getEnvironment().getProperty("hotReload.package.domain");
 
             // Build source datasource
             DataSource dataSource = applicationContext.getBean(DataSource.class);
@@ -252,24 +251,10 @@ public class LiquibaseReloader {
                 diffResult.getUnexpectedObjects().remove(table);
 			}
         }
-        Set<Table> missingTables = diffResult
-                .getMissingObjects(Table.class);
-		
-        for (Table table : missingTables) {
-            if (IGNORE_JHIPSTER.contains(table.getName())) {
-                diffResult.getMissingObjects().remove(table);
-			}
-        }
         Set<Column> unexpectedColumns = diffResult.getUnexpectedObjects(Column.class);
         for (Column column : unexpectedColumns) {
             if (IGNORE_JHIPSTER.contains(column.getRelation().getName())) {
                 diffResult.getUnexpectedObjects().remove(column);
-			}
-        }
-        Set<Column> missingColumns = diffResult.getMissingObjects(Column.class);
-        for (Column column : missingColumns) {
-            if (IGNORE_JHIPSTER.contains(column.getRelation().getName())) {
-                diffResult.getMissingObjects().remove(column);
 			}
         }
         Set<Index> unexpectedIndexes = diffResult.getUnexpectedObjects(Index.class);
@@ -278,22 +263,10 @@ public class LiquibaseReloader {
                 diffResult.getUnexpectedObjects().remove(index);
 			}
         }
-        Set<Index> missingIndexes = diffResult.getMissingObjects(Index.class);
-        for (Index index : missingIndexes) {
-            if (IGNORE_JHIPSTER.contains(index.getTable().getName())) {
-                diffResult.getMissingObjects().remove(index);
-			}
-        }
         Set<PrimaryKey> unexpectedPrimaryKeys = diffResult.getUnexpectedObjects(PrimaryKey.class);
         for (PrimaryKey primaryKey : unexpectedPrimaryKeys) {
             if (IGNORE_JHIPSTER.contains(primaryKey.getTable().getName())) {
                 diffResult.getUnexpectedObjects().remove(primaryKey);
-			}
-        }
-        Set<PrimaryKey> missingPrimaryKeys = diffResult.getMissingObjects(PrimaryKey.class);
-        for (PrimaryKey primaryKey : missingPrimaryKeys) {
-            if (IGNORE_JHIPSTER.contains(primaryKey.getTable().getName())) {
-                diffResult.getMissingObjects().remove(primaryKey);
 			}
         }
         Set<ForeignKey> unexpectedForeignKeys = diffResult.getUnexpectedObjects(ForeignKey.class);
@@ -301,12 +274,6 @@ public class LiquibaseReloader {
             if (IGNORE_JHIPSTER.contains(foreignKey.getForeignKeyTable().getName())) {
                 diffResult.getUnexpectedObjects().remove(foreignKey);
 			}
-        }
-        Set<ForeignKey> missingForeignKeys = diffResult.getMissingObjects(ForeignKey.class);
-        for (ForeignKey foreignKey : missingForeignKeys) {
-            if (IGNORE_JHIPSTER.contains(foreignKey.getForeignKeyTable().getName())) {
-                diffResult.getMissingObjects().remove(foreignKey);
-            }
         }
     }
 
