@@ -32,8 +32,8 @@
 
     <modules>
         <module>common</module>
+        <module>core</module>
         <module>agent</module>
-        <module>reloader</module>
     </modules>
 
     <repositories>
