@@ -1,2 +1,2 @@
 # Auto Configure
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.jhipster.loaded.JHipsterReloaderAutoConfiguration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=io.github.jhipster.loaded.JHipsterReloaderAutoConfiguration
