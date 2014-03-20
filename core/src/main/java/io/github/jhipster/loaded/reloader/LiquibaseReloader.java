@@ -104,13 +104,13 @@ public class LiquibaseReloader {
 
                     EntityManagerFactoryBuilderImpl builder = (EntityManagerFactoryBuilderImpl) Bootstrap.getEntityManagerFactoryBuilder(persistenceUnitInfo,
                             jpaPropertyMap);
-					
+
                     ServiceRegistry serviceRegistry = builder.buildServiceRegistry();
                     return builder.buildHibernateConfiguration(serviceRegistry);
                 }
             };
-            hibernateDatabase.setDefaultSchemaName("");
-            hibernateDatabase.setDefaultCatalogName("");
+            hibernateDatabase.setDefaultSchemaName(getDefaultSchemaName());
+            hibernateDatabase.setDefaultCatalogName(getDefaultCatalogName());
             hibernateDatabase.setConnection(new JdbcConnection(
                     new HibernateConnection("hibernate:spring:" + packagesToScan + "?dialect=" + applicationContext.getEnvironment().getProperty("spring.jpa.database-platform"))));
 
@@ -240,40 +240,57 @@ public class LiquibaseReloader {
     private void ignoreDatabaseJHipsterTables(DiffResult diffResult)
             throws Exception {
 
-        List<String> IGNORE_JHIPSTER = Arrays.asList("HIBERNATE_SEQUENCES", "T_AUTHORITY",
-                "T_PERSISTENT_AUDIT_EVENT", "T_PERSISTENT_AUDIT_EVENT_DATA", "T_PERSISTENT_TOKEN", "T_USER", "T_USER_AUTHORITY");
-
         Set<Table> unexpectedTables = diffResult
                 .getUnexpectedObjects(Table.class);
-		
+
         for (Table table : unexpectedTables) {
-            if (IGNORE_JHIPSTER.contains(table.getName())) {
-                diffResult.getUnexpectedObjects().remove(table);
-			}
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(table.getName())) {
+               diffResult.getUnexpectedObjects().remove(table);
+            }
+        }
+        Set<Table> missingTables = diffResult
+                .getMissingObjects(Table.class);
+
+        for (Table table : missingTables) {
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(table.getName())) {
+                diffResult.getMissingObjects().remove(table);
+            }
         }
         Set<Column> unexpectedColumns = diffResult.getUnexpectedObjects(Column.class);
         for (Column column : unexpectedColumns) {
-            if (IGNORE_JHIPSTER.contains(column.getRelation().getName())) {
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(column.getRelation().getName())) {
                 diffResult.getUnexpectedObjects().remove(column);
-			}
+            }
+        }
+        Set<Column> missingColumns = diffResult.getMissingObjects(Column.class);
+        for (Column column : missingColumns) {
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(column.getRelation().getName())) {
+                diffResult.getMissingObjects().remove(column);
+            }
         }
         Set<Index> unexpectedIndexes = diffResult.getUnexpectedObjects(Index.class);
         for (Index index : unexpectedIndexes) {
-            if (IGNORE_JHIPSTER.contains(index.getTable().getName())) {
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(index.getTable().getName())) {
                 diffResult.getUnexpectedObjects().remove(index);
-			}
+            }
+        }
+        Set<Index> missingIndexes = diffResult.getMissingObjects(Index.class);
+        for (Index index : missingIndexes) {
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(index.getTable().getName())) {
+                diffResult.getMissingObjects().remove(index);
+            }
         }
         Set<PrimaryKey> unexpectedPrimaryKeys = diffResult.getUnexpectedObjects(PrimaryKey.class);
         for (PrimaryKey primaryKey : unexpectedPrimaryKeys) {
-            if (IGNORE_JHIPSTER.contains(primaryKey.getTable().getName())) {
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(primaryKey.getTable().getName())) {
                 diffResult.getUnexpectedObjects().remove(primaryKey);
-			}
+            }
         }
-        Set<ForeignKey> unexpectedForeignKeys = diffResult.getUnexpectedObjects(ForeignKey.class);
-        for (ForeignKey foreignKey : unexpectedForeignKeys) {
-            if (IGNORE_JHIPSTER.contains(foreignKey.getForeignKeyTable().getName())) {
-                diffResult.getUnexpectedObjects().remove(foreignKey);
-			}
+        Set<PrimaryKey> missingPrimaryKeys = diffResult.getMissingObjects(PrimaryKey.class);
+        for (PrimaryKey primaryKey : missingPrimaryKeys) {
+            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(primaryKey.getTable().getName())) {
+                diffResult.getMissingObjects().remove(primaryKey);
+            }
         }
     }
 
@@ -334,8 +351,40 @@ public class LiquibaseReloader {
      * @return the source database
      */
     private Database getDatabaseSource() {
-        return new liquibase.database.core.H2Database();
+        String currentDatabase = applicationContext.getEnvironment().getProperty("spring.jpa.database");
+
+        String liquibaseDatabase;
+
+        switch (currentDatabase) {
+            case "MYSQL":
+                liquibaseDatabase = "liquibase.database.core.MySQLDatabase";
+                break;
+            case "POSTGRESQL":
+                liquibaseDatabase = "liquibase.database.core.PostgresDatabase";
+                break;
+            case "H2":
+                liquibaseDatabase = "liquibase.database.core.H2Database";
+                break;
+            default:
+                throw new IllegalStateException("The database named '" + currentDatabase + "' is not supported");
+        }
+
+        try {
+            return (Database) Class.forName(liquibaseDatabase).newInstance();
+        } catch (Exception e) {
+            log.error("Failed to instanciate the liquibase database: {}", liquibaseDatabase);
+            throw new IllegalStateException("Failed to instanciate the liquibase database: " + liquibaseDatabase);
+        }
     }
+
+    public String getDefaultSchemaName() {
+        return applicationContext.getEnvironment().getProperty("hotReload.liquibase.defaultSchema", "");
+    }
+
+    public String getDefaultCatalogName() {
+        return applicationContext.getEnvironment().getProperty("hotReload.liquibase.defaultCatalogName", "");
+    }
+
 
     /**
      * The master.xml file will be rewritten to include the new changelogs

@@ -57,7 +57,7 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
             // Quick fix for a NPE. @see JHipsterTableSnapshotGenerator
             if (StringUtils.equals(slashedClassName, "liquibase/ext/hibernate/snapshot/TableSnapshotGenerator")) {
                 CtClass ctClass = classPool.get("liquibase.ext.hibernate.snapshot.TableSnapshotGenerator");
-                ctClass.setSuperclass(classPool.get("io.github.jhipster.patch.liquibase.JHipsterTableSnapshotGenerator"));
+                ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.patch.liquibase.JHipsterTableSnapshotGenerator"));
                 CtMethod ctMethod = ctClass.getDeclaredMethod("snapshotObject");
                 ctMethod.setBody("{ return super.snapshotObject($1, $2);}");
                 return ctClass.toBytecode();
@@ -67,7 +67,7 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
             // It will wrap the Hibernate entityManagerFactory to be able to reload it.
             if (StringUtils.equals(slashedClassName, "org/hibernate/jpa/HibernatePersistenceProvider")) {
                 CtClass ctClass = classPool.get("org.hibernate.jpa.HibernatePersistenceProvider");
-                ctClass.setSuperclass(classPool.get("io.github.jhipster.hibernate.JHipsterPersistenceProvider"));
+                ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.hibernate.JHipsterPersistenceProvider"));
                 CtMethod ctMethod = ctClass.getDeclaredMethod("createContainerEntityManagerFactory");
                 ctMethod.setBody("{ return super.createContainerEntityManagerFactory($1, $2); }");
                 return ctClass.toBytecode();
