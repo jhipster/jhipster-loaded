@@ -8,12 +8,10 @@ See the online documentation (http://central.sonatype.org/pages/apache-maven.htm
     1. mvn clean deploy
 
 1. Performing a Release Deployment
-    1. mvn release:clean release:prepare
-    1. mvn release:perform
+    1. mvn versions:set -DnewVersion=1.2.3
+    1. mvn clean deploy -P release
 
 1. Releasing the Deployment to the Central Repository
-    1. mvn nexus-staging:release
-    1. mvn release:perform
-    1. cd target/checkout
-    1. mvn nexus-staging:release
+    1. mvn nexus-staging:release -Prelease
+    1. mvn versions:set -DnewVersion=1.2.3-SNAPSHOT
 
