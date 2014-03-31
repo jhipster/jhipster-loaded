@@ -1,8 +1,7 @@
 package io.github.jhipster.loaded;
 
-import io.github.jhipster.loaded.reloader.JacksonReloader;
-import io.github.jhipster.loaded.reloader.LiquibaseReloader;
-import io.github.jhipster.loaded.reloader.SpringReloader;
+import io.github.jhipster.loaded.reloader.Reloader;
+import io.github.jhipster.loaded.reloader.type.*;
 import org.apache.commons.lang.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.persistence.Entity;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -42,19 +42,10 @@ public class JHipsterReloaderThread implements Runnable {
     private static final int BATCH_DELAY = 250;
 
     /**
-     * Reloads Spring beans.
+     * The list of reloaders called when a spring class has been compiled
+     * and needs to be reloaded
      */
-    private static SpringReloader springReloader;
-
-    /**
-     * Reloads Jackson classes.
-     */
-    private static JacksonReloader jacksonReloader;
-
-    /**
-     * Reloads Database, Entity and Hibernate Factory
-     */
-    private static LiquibaseReloader liquibaseReloader;
+    private Collection<Reloader> reloaders;
 
     /**
      * Stores the Spring controllers reloaded in the batch.
@@ -86,14 +77,11 @@ public class JHipsterReloaderThread implements Runnable {
      */
     private List<Class> dtos = new ArrayList<>();
 
-    public JHipsterReloaderThread(ConfigurableApplicationContext applicationContext) {
+    public JHipsterReloaderThread(ConfigurableApplicationContext applicationContext, Collection<Reloader> reloaders) {
+        this.reloaders = reloaders;
         domainPackageName = applicationContext.getEnvironment().getProperty("hotReload.package.domain");
         dtoPackageName = applicationContext.getEnvironment().getProperty("hotReload.package.restdto");
         isStarted = true;
-        springReloader = new SpringReloader(applicationContext);
-        springReloader.afterPropertiesSet();
-        jacksonReloader = new JacksonReloader(applicationContext);
-        liquibaseReloader = new LiquibaseReloader(applicationContext);
     }
 
     public void reloadEvent(String typename, Class<?> clazz) {
@@ -148,8 +136,7 @@ public class JHipsterReloaderThread implements Runnable {
                         log.info("Batch reload has been triggered, waiting for new classes for {} ms", BATCH_DELAY);
                         isWaitingForNewClasses = false;
                     } else {
-                        batchReload();
-                        hotReloadTriggered = springReloader.hasBeansToReload();
+                        hotReloadTriggered = batchReload();
                     }
                 } else {
                     log.trace("Waiting for batch reload");
@@ -160,41 +147,73 @@ public class JHipsterReloaderThread implements Runnable {
         }
     }
 
-    private void batchReload() {
+    private boolean batchReload() {
+        boolean hasBeansToReload = false;
         synchronized (lock) {
             log.info("Batch reload in progress...");
-            if (entities.size() > 0 || dtos.size() > 0) {
-                log.debug("There are {} entities and {} dtos updated, invalidating Jackson cache",
-                        entities.size(), dtos.size());
 
-                jacksonReloader.reloadEvent();
+            for (Reloader reloader : reloaders) {
+                boolean reload = false;
+                reloader.prepare();
 
-                if (entities.size() > 0) {
-                    liquibaseReloader.reloadEvent(entities);
-                    springReloader.hasNewEntityBean();
-                    entities.clear();
+                // reload entities
+                if (reloader.supports(EntityReloaderType.class) && !entities.isEmpty()) {
+                    reload = true;
+                    addSpringBeans(reloader, EntityReloaderType.instance, entities);
+                }
+                // reload dtos
+                if (reloader.supports(RestDtoReloaderType.class) && !dtos.isEmpty()) {
+                    reload = true;
+                    addSpringBeans(reloader, RestDtoReloaderType.instance, dtos);
+                }
+                // reload repositories
+                if (reloader.supports(RepositoryReloaderType.class) && !repositories.isEmpty()) {
+                    reload = true;
+                    addSpringBeans(reloader, RepositoryReloaderType.instance, repositories);
+                }
+                // reload services
+                if (reloader.supports(ServiceReloaderType.class) && !services.isEmpty()) {
+                    reload = true;
+                    addSpringBeans(reloader, ServiceReloaderType.instance, services);
+                }
+                // reload components
+                if (reloader.supports(ComponentReloaderType.class) && !components.isEmpty()) {
+                    reload = true;
+                    addSpringBeans(reloader, ComponentReloaderType.instance, components);
+                }
+                // reload controllers
+                if (reloader.supports(ControllerReloaderType.class) && !controllers.isEmpty()) {
+                    reload = true;
+                    addSpringBeans(reloader, ControllerReloaderType.instance, controllers);
+                }
+
+                // Reload the spring beans
+                if (reload || reloader.hasBeansToReload()) {
+                    reloader.reload();
+                }
+
+                if (reloader.hasBeansToReload()) {
+                    hasBeansToReload = true;
                 }
             }
-            addSpringBeans("repositories", repositories);
-            addSpringBeans("services", services);
-            addSpringBeans("components", components);
-            addSpringBeans("controllers", controllers);
 
-            // Start to reload all Spring beans
-            if (springReloader.hasBeansToReload()) {
-                springReloader.start();
-            }
+            // clear all lists
+            entities.clear();
+            dtos.clear();
+            repositories.clear();
+            services.clear();
+            components.clear();
+            controllers.clear();
         }
+
+        return hasBeansToReload;
     }
 
-    private void addSpringBeans(String type, List<Class> list) {
-        if (list.size() > 0) {
-            log.debug("There are {} Spring {} updated, adding them to be reloaded", list.size(), type);
-            for (Class clazz : list) {
-                springReloader.reloadEvent(clazz);
-            }
+    private void addSpringBeans(Reloader reloader, ReloaderType type, Collection<Class> classes) {
+        if (classes.size() > 0) {
+            log.debug("There are {} Spring {} updated, adding them to be reloaded", classes.size(), type.getName());
+            reloader.addBeansToReload(classes, type.getClass());
         }
-        list.clear();
     }
 
     /**

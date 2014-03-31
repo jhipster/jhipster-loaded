@@ -1,10 +1,13 @@
 package io.github.jhipster.loaded;
 
+import io.github.jhipster.loaded.reloader.Reloader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springsource.loaded.Plugins;
 import org.springsource.loaded.ReloadEventProcessorPlugin;
+
+import java.util.Collection;
 
 /**
  * Automatically re-configures classes when Spring Loaded triggers a hot reload event.
@@ -50,8 +53,8 @@ public class JHipsterPluginManagerReloadPlugin implements ReloadEventProcessorPl
         jHipsterReloaderThread.reloadEvent(typename, clazz);
     }
 
-    public static void register(ConfigurableApplicationContext ctx, ClassLoader classLoader) {
-        jHipsterReloaderThread = new JHipsterReloaderThread(ctx);
+    public static void register(ConfigurableApplicationContext ctx, Collection<Reloader> reloaders, ClassLoader classLoader) {
+        jHipsterReloaderThread = new JHipsterReloaderThread(ctx, reloaders);
         JHipsterReloaderThread.register(jHipsterReloaderThread);
         JHipsterFileSystemWatcher.register(classLoader, ctx);
         Plugins.registerGlobalPlugin(new JHipsterPluginManagerReloadPlugin(ctx));

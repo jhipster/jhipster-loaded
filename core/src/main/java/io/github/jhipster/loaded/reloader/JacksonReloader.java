@@ -5,11 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.DeserializerCache;
 import com.fasterxml.jackson.databind.ser.SerializerCache;
+import io.github.jhipster.loaded.reloader.type.EntityReloaderType;
+import io.github.jhipster.loaded.reloader.type.ReloaderType;
+import io.github.jhipster.loaded.reloader.type.RestDtoReloaderType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
@@ -19,18 +24,41 @@ import java.util.Collection;
 /**
  * Reloads Jackson classes.
  */
-public class JacksonReloader {
+@Component
+@Order(80)
+public class JacksonReloader implements Reloader {
 
     private final Logger log = LoggerFactory.getLogger(JacksonReloader.class);
 
     private ConfigurableApplicationContext applicationContext;
 
-    public JacksonReloader(ConfigurableApplicationContext applicationContext) {
+    @Override
+    public void init(ConfigurableApplicationContext applicationContext) {
         log.debug("Hot reloading Jackson enabled");
         this.applicationContext = applicationContext;
     }
 
-    public void reloadEvent() {
+    @Override
+    public boolean supports(Class<? extends ReloaderType> reloaderType) {
+        return reloaderType.equals(EntityReloaderType.class) || reloaderType.equals(RestDtoReloaderType.class);
+    }
+
+    @Override
+    public void prepare() {}
+
+    @Override
+    public boolean hasBeansToReload() {
+        return false;
+    }
+
+    @Override
+    public void addBeansToReload(Collection<Class> classes, Class<? extends ReloaderType> reloaderType) {
+        // Do nothing. We just need to know that an Entity or a RestDTO class have been compiled
+        // So we need to reload the Jackson classes
+    }
+
+    @Override
+    public void reload() {
         log.debug("Hot reloading Jackson classes");
         try {
             ConfigurableListableBeanFactory beanFactory = applicationContext.getBeanFactory();
@@ -56,8 +84,7 @@ public class JacksonReloader {
                 deSerializerCacheFlushMethod.invoke(deSerializerCache);
             }
         } catch (Exception e) {
-            log.warn("Could not hot reload Jackson class!");
-            e.printStackTrace();
+            log.warn("Could not hot reload Jackson class!", e);
         }
     }
 }

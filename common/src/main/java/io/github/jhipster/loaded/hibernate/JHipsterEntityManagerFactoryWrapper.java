@@ -7,7 +7,7 @@ import javax.persistence.*;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.metamodel.Metamodel;
 import javax.persistence.spi.PersistenceUnitInfo;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -32,11 +32,11 @@ public class JHipsterEntityManagerFactoryWrapper implements EntityManagerFactory
      * Reload the Entity manager factory
      * @param entities list of entities to load
      */
-    public static void reload(List<Class> entities) {
+    public static void reload(Collection<Class> entities) {
         instance.build(entities);
     }
 
-    private void build(List<Class> entities) {
+    private void build(Collection<Class> entities) {
         // Add new entities if not exists
         if (entities != null) {
             MutablePersistenceUnitInfo mutablePersistenceUnitInfo = (MutablePersistenceUnitInfo) info;

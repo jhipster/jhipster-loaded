@@ -1,6 +1,8 @@
 package io.github.jhipster.loaded.reloader;
 
 import io.github.jhipster.loaded.hibernate.JHipsterEntityManagerFactoryWrapper;
+import io.github.jhipster.loaded.reloader.type.EntityReloaderType;
+import io.github.jhipster.loaded.reloader.type.ReloaderType;
 import liquibase.Liquibase;
 import liquibase.database.Database;
 import liquibase.database.jvm.JdbcConnection;
@@ -26,10 +28,12 @@ import org.hibernate.service.ServiceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResourceLoader;
 import org.springframework.orm.jpa.persistenceunit.DefaultPersistenceUnitManager;
 import org.springframework.orm.jpa.persistenceunit.SmartPersistenceUnitInfo;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.springframework.stereotype.Component;
 
 import javax.persistence.spi.PersistenceUnitInfo;
 import javax.sql.DataSource;
@@ -41,7 +45,9 @@ import java.util.*;
  * Compare the Hibernate Entity JPA and the current database.
  * If changes have been done, a new db-changelog-[SEQUENCE].xml file will be generated and the database will be updated
  */
-public class LiquibaseReloader {
+@Component
+@Order(90)
+public class LiquibaseReloader implements Reloader {
 
     private final Logger log = LoggerFactory.getLogger(LiquibaseReloader.class);
 
@@ -49,17 +55,38 @@ public class LiquibaseReloader {
     public static final String CHANGELOG_FOLER = "src/main/resources/config/liquibase/changelog/";
     public static final String RELATIVE_CHANGELOG_FOLER = "classpath:config/liquibase/changelog/";
 
+    private Collection<Class> entitiesToReload = new LinkedHashSet<>();
+
     private ConfigurableApplicationContext applicationContext;
     private CompareControl compareControl;
 
-    public LiquibaseReloader(ConfigurableApplicationContext applicationContext) {
+    @Override
+    public void init(ConfigurableApplicationContext applicationContext) {
         log.debug("Hot reloading JPA & Liquibase enabled");
         this.applicationContext = applicationContext;
         initCompareControl();
     }
 
+    @Override
+    public boolean supports(Class<? extends ReloaderType> reloaderType) {
+        return reloaderType.equals(EntityReloaderType.class);
+    }
 
-    public void reloadEvent(List<Class> entities) {
+    @Override
+    public void prepare() {}
+
+    @Override
+    public boolean hasBeansToReload() {
+        return false;
+    }
+
+    @Override
+    public void addBeansToReload(Collection<Class> classes, Class<? extends ReloaderType> reloaderType) {
+        entitiesToReload.addAll(classes);
+    }
+
+    @Override
+    public void reload() {
         log.debug("Hot reloading JPA & Liquibase classes");
         try {
             final String packagesToScan = applicationContext.getEnvironment().getProperty("hotReload.package.domain");
@@ -159,7 +186,8 @@ public class LiquibaseReloader {
             }
 
             // Ask to reload the EntityManager
-            JHipsterEntityManagerFactoryWrapper.reload(entities);
+            JHipsterEntityManagerFactoryWrapper.reload(entitiesToReload);
+            entitiesToReload.clear();
         } catch (Exception e) {
             log.error("Failed to generate the db-changelog.xml file", e);
         }

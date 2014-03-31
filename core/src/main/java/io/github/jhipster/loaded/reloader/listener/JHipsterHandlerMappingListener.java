@@ -1,14 +1,15 @@
-package io.github.jhipster.loaded.listener.springreload;
+package io.github.jhipster.loaded.reloader.listener;
 
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.method.HandlerMethodSelector;
 import org.springframework.web.servlet.handler.AbstractHandlerMethodMapping;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
@@ -16,10 +17,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * This Handler mapping is used to map only new Controller classes.
@@ -27,16 +25,16 @@ import java.util.Set;
  *
  * Each time, a controller is compiled this handler is called and the new controllers will be re-mapped
  */
-public class JHipsterHandlerMappingListener extends RequestMappingHandlerMapping implements SpringReloadListener, Ordered {
+public class JHipsterHandlerMappingListener extends RequestMappingHandlerMapping implements SpringListener, Ordered {
 
     private final Logger log = LoggerFactory.getLogger(JHipsterHandlerMappingListener.class);
 
-    private List<Class<?>> newControllers = new ArrayList<>();
+    private List<Class> newControllers = new ArrayList<>();
 
     private ConfigurableApplicationContext applicationContext;
 
     @Override
-    public void register(ConfigurableApplicationContext applicationContext) {
+    public void init(ConfigurableApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
 
         // By default the static resource handler mapping is LOWEST_PRECEDENCE - 1
@@ -56,10 +54,7 @@ public class JHipsterHandlerMappingListener extends RequestMappingHandlerMapping
     }
 
     @Override
-    public void process(Class<?> clazz, boolean newClass) {
-        // Clear existing mapping to register new classes
-        clearExistingMapping();
-
+    public void addBeansToProcess(Class<?> clazz, boolean newClass) {
         // Register only new classes - existing classes will be handled by the default RequestMappingHandlerMapping class
         if (newClass) {
             newControllers.add(ClassUtils.getUserClass(clazz));
@@ -69,7 +64,10 @@ public class JHipsterHandlerMappingListener extends RequestMappingHandlerMapping
     }
 
     @Override
-    public void execute() {
+    public void process() {
+        // Clear existing mapping to register new classes
+        clearExistingMapping();
+
         // Re-map the methods
         for (Class<?> clazz : newControllers) {
             final Class<?> userType = clazz;
@@ -81,14 +79,19 @@ public class JHipsterHandlerMappingListener extends RequestMappingHandlerMapping
                 }
             });
 
-            for (Method method : methods) {
-                RequestMappingInfo mapping = getMappingForMethod(method, userType);
-                try {
-                    Object handler = applicationContext.getBean(clazz);
-                    registerHandlerMethod(handler, method, mapping);
-                } catch (Exception e) {
-                    logger.warn("Failed to register the method", e);
+            try {
+                Object handler = applicationContext.getBean(clazz);
+                for (Method method : methods) {
+                    RequestMappingInfo mapping = getMappingForMethod(method, userType);
+                    try {
+                        registerHandlerMethod(handler, method, mapping);
+                    } catch (Exception e) {
+                        logger.trace("Failed to register the handler for the method '" + method.getName() + "'", e);
+                    }
                 }
+            } catch (BeansException e) {
+                log.debug("JHipster reload - Spring bean '{}' does not exist, " +
+                        "wait until this class will be available.", clazz.getName());
             }
         }
     }
@@ -101,6 +104,13 @@ public class JHipsterHandlerMappingListener extends RequestMappingHandlerMapping
             final Field urlMapField = ReflectionUtils.findField(AbstractHandlerMethodMapping.class, "urlMap");
             urlMapField.setAccessible(true);
             Map urlMap = (Map) urlMapField.get(this);
+
+            for (Object mapping : urlMap.keySet()) {
+                if (logger.isInfoEnabled()) {
+                    logger.info("Remove Mapped \"" + mapping + "\"");
+                }
+            }
+
             urlMap.clear();
 
             final Field handlerMethodsField = ReflectionUtils.findField(AbstractHandlerMethodMapping.class, "handlerMethods");
