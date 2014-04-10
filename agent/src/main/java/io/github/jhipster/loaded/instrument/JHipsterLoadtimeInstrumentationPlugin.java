@@ -1,7 +1,6 @@
 package io.github.jhipster.loaded.instrument;
 
 import javassist.*;
-import org.apache.commons.lang.StringUtils;
 import org.springsource.loaded.LoadtimeInstrumentationPlugin;
 
 import java.security.ProtectionDomain;
@@ -18,26 +17,28 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
 
     @Override
     public boolean accept(String slashedTypeName, ClassLoader classLoader, ProtectionDomain protectionDomain, byte[] bytes) {
-        return StringUtils.equals(slashedTypeName, "org/springframework/security/access/method/DelegatingMethodSecurityMetadataSource") ||
-               StringUtils.equals(slashedTypeName, "org/springframework/aop/framework/AdvisedSupport") ||
-               StringUtils.equals(slashedTypeName, "liquibase/ext/hibernate/snapshot/TableSnapshotGenerator") ||
-               StringUtils.equals(slashedTypeName, "org/hibernate/jpa/HibernatePersistenceProvider") ||
-               StringUtils.equals(slashedTypeName, "org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor") ||
-               StringUtils.equals(slashedTypeName, "org/springframework/core/LocalVariableTableParameterNameDiscoverer");
+        return slashedTypeName != null && (slashedTypeName.equals("org/springframework/security/access/method/DelegatingMethodSecurityMetadataSource") ||
+               slashedTypeName.equals("org/springframework/aop/framework/AdvisedSupport") ||
+               slashedTypeName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator") ||
+               slashedTypeName.equals("org/hibernate/jpa/HibernatePersistenceProvider") ||
+               slashedTypeName.equals("org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor") ||
+               slashedTypeName.equals("org/springframework/core/LocalVariableTableParameterNameDiscoverer"));
     }
 
     @Override
     public byte[] modify(String slashedClassName, ClassLoader classLoader, byte[] bytes) {
-        ClassPool classPool = new ClassPool();
+        ClassPool classPool = ClassPool.getDefault();
+        classPool.appendClassPath(new LoaderClassPath(Thread.currentThread().getContextClassLoader()));
         classPool.appendClassPath(new LoaderClassPath(classLoader));
 
         try {
             // Remove final from a class definition to be able to proxy it. @See JHipsterReloadWebSecurityConfig class
-            if (StringUtils.equals(slashedClassName, "org/springframework/security/access/method/DelegatingMethodSecurityMetadataSource")) {
+            if (slashedClassName.equals("org/springframework/security/access/method/DelegatingMethodSecurityMetadataSource")) {
                 CtClass ctClass = classPool.get("org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource");
                 CtMethod ctMethod = ctClass.getDeclaredMethod("getAttributes");
                 ctMethod.insertBefore("{synchronized (attributeCache) { attributeCache.clear();} }");
-                return ctClass.toBytecode();
+                bytes =  ctClass.toBytecode();
+                ctClass.defrost();
             }
 
             // The AdvisedSupport is in charge to manage the advised associated to a method.
@@ -45,52 +46,57 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
             // So if a method has @Timed when the application is started and wants to add a @RolesAllowed,
             // the last added annotation is not advised because the cache is used.
             // The call to the method adviceChanged will clear the cache
-            if (StringUtils.equals(slashedClassName, "org/springframework/aop/framework/AdvisedSupport")) {
+            if (slashedClassName.equals("org/springframework/aop/framework/AdvisedSupport")) {
                 CtClass ctClass = classPool.get("org.springframework.aop.framework.AdvisedSupport");
                 CtMethod ctMethod = ctClass.getDeclaredMethod("getInterceptorsAndDynamicInterceptionAdvice");
                 ctMethod.insertBefore("{ adviceChanged(); }");
-                return ctClass.toBytecode();
+                bytes =  ctClass.toBytecode();
+                ctClass.defrost();
             }
 
 
             // Change the super class from TableSnapshotGenerator to JHipsterTableSnapshotGenerator.
             // Quick fix for a NPE. @see JHipsterTableSnapshotGenerator
-            if (StringUtils.equals(slashedClassName, "liquibase/ext/hibernate/snapshot/TableSnapshotGenerator")) {
+            if (slashedClassName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator")) {
                 CtClass ctClass = classPool.get("liquibase.ext.hibernate.snapshot.TableSnapshotGenerator");
                 ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.patch.liquibase.JHipsterTableSnapshotGenerator"));
                 CtMethod ctMethod = ctClass.getDeclaredMethod("snapshotObject");
                 ctMethod.setBody("{ return super.snapshotObject($1, $2);}");
-                return ctClass.toBytecode();
+                bytes =  ctClass.toBytecode();
+                ctClass.defrost();
             }
 
             // Add JHipsterPersistenceProvider class as the super class.
             // It will wrap the Hibernate entityManagerFactory to be able to reload it.
-            if (StringUtils.equals(slashedClassName, "org/hibernate/jpa/HibernatePersistenceProvider")) {
+            if (slashedClassName.equals("org/hibernate/jpa/HibernatePersistenceProvider")) {
                 CtClass ctClass = classPool.get("org.hibernate.jpa.HibernatePersistenceProvider");
                 ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.hibernate.JHipsterPersistenceProvider"));
                 CtMethod ctMethod = ctClass.getDeclaredMethod("createContainerEntityManagerFactory");
                 ctMethod.setBody("{ return super.createContainerEntityManagerFactory($1, $2); }");
-                return ctClass.toBytecode();
+                bytes =  ctClass.toBytecode();
+                ctClass.defrost();
             }
 
             // Make TransactionalRepositoryProxyPostProcessor public to use by SpringLoader to initialize
             // the Jpa repository factory.
-            if (StringUtils.equals(slashedClassName, "org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor")) {
+            if (slashedClassName.equals("org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor")) {
                 CtClass ctClass = classPool.get("org.springframework.data.repository.core.support.TransactionalRepositoryProxyPostProcessor");
                 ctClass.setModifiers(Modifier.PUBLIC);
-                return ctClass.toBytecode();
+                bytes =  ctClass.toBytecode();
+                ctClass.defrost();
             }
 
             // The parameters are cached and when a class is reloaded, the map used for the caching is not able to
             // return the cached parameters for a class or a method or a constructor.
             // So the cache will be clear everytime the getParameterNames method is called
-            if (StringUtils.equals(slashedClassName, "org/springframework/core/LocalVariableTableParameterNameDiscoverer")) {
+            if (slashedClassName.equals("org/springframework/core/LocalVariableTableParameterNameDiscoverer")) {
                 CtClass ctClass = classPool.get("org.springframework.core.LocalVariableTableParameterNameDiscoverer");
                 CtMethod ctMethod = ctClass.getDeclaredMethod("getParameterNames", new CtClass[]{classPool.get("java.lang.reflect.Method")});
                 ctMethod.insertBefore("{ this.parameterNamesCache.clear(); }");
                 ctMethod = ctClass.getDeclaredMethod("getParameterNames", new CtClass[]{classPool.get("java.lang.reflect.Constructor")});
                 ctMethod.insertBefore("{ this.parameterNamesCache.clear(); }");
-                return ctClass.toBytecode();
+                bytes =  ctClass.toBytecode();
+                ctClass.defrost();
             }
         } catch (Exception e) {
             log.log(Level.SEVERE, "Failed to modify the DelegatingMethodSecurityMetadataSource class", e);
