@@ -20,6 +20,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Reloads Jackson classes.
@@ -67,6 +68,11 @@ public class JacksonReloader implements Reloader {
                     .values();
 
             for (ObjectMapper mapper : mappers) {
+                log.trace("Flushing Jackson root deserializer cache");
+                final Field rootDeserializersField = ReflectionUtils.findField(mapper.getClass(), "_rootDeserializers");
+                ReflectionUtils.makeAccessible(rootDeserializersField);
+                ((ConcurrentHashMap) ReflectionUtils.getField(rootDeserializersField, mapper)).clear();
+
                 log.trace("Flushing Jackson serializer cache");
                 SerializerProvider serializerProvider = mapper.getSerializerProvider();
                 Field serializerCacheField = serializerProvider.getClass().getSuperclass().getSuperclass().getDeclaredField("_serializerCache");

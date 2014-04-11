@@ -21,6 +21,7 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
                slashedTypeName.equals("org/springframework/aop/framework/AdvisedSupport") ||
                slashedTypeName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator") ||
                slashedTypeName.equals("org/hibernate/jpa/HibernatePersistenceProvider") ||
+               slashedTypeName.equals("org/hibernate/engine/internal/CacheHelper") ||
                slashedTypeName.equals("org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor") ||
                slashedTypeName.equals("org/springframework/core/LocalVariableTableParameterNameDiscoverer"));
     }
@@ -74,6 +75,22 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
                 CtMethod ctMethod = ctClass.getDeclaredMethod("createContainerEntityManagerFactory");
                 ctMethod.setBody("{ return super.createContainerEntityManagerFactory($1, $2); }");
                 bytes =  ctClass.toBytecode();
+                ctClass.defrost();
+            }
+
+
+            // JHipster used second level caching so by default every entity is cached.
+            // The second level caching is managed by the class @see org.hibernate.engine.internal.CacheHelper
+            // So when the second level caching is enabled and if an entity is updated (add or remove or update a new field)
+            // the cached entity is returned and the code doesn't work.
+            if (slashedClassName.equals("org/hibernate/engine/internal/CacheHelper")) {
+                CtClass ctClass = classPool.get("org.hibernate.engine.internal.CacheHelper");
+                CtClass sessionClass = classPool.get("org.hibernate.engine.spi.SessionImplementor");
+                CtClass cacheKeyClass = classPool.get("org.hibernate.cache.spi.CacheKey");
+                CtClass regionAccessStrategyClass = classPool.get("org.hibernate.cache.spi.access.RegionAccessStrategy");
+                CtMethod ctMethod = ctClass.getDeclaredMethod("fromSharedCache", new CtClass[]{sessionClass, cacheKeyClass, regionAccessStrategyClass});
+                ctMethod.setBody("{ return null; }");
+                bytes = ctClass.toBytecode();
                 ctClass.defrost();
             }
 
