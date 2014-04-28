@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -25,6 +26,7 @@ import java.lang.reflect.Constructor;
  */
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE - 1)
+@ConditionalOnClass(EntityManager.class)
 public class JpaSpringLoader implements SpringLoader {
 
     private final Logger log = LoggerFactory.getLogger(JpaSpringLoader.class);

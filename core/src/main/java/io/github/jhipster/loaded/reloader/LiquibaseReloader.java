@@ -27,6 +27,7 @@ import org.hibernate.jpa.boot.spi.Bootstrap;
 import org.hibernate.service.ServiceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResourceLoader;
@@ -47,6 +48,7 @@ import java.util.*;
  */
 @Component
 @Order(90)
+@ConditionalOnClass(Liquibase.class)
 public class LiquibaseReloader implements Reloader {
 
     private final Logger log = LoggerFactory.getLogger(LiquibaseReloader.class);
@@ -58,6 +60,7 @@ public class LiquibaseReloader implements Reloader {
     private Collection<Class> entitiesToReload = new LinkedHashSet<>();
 
     private ConfigurableApplicationContext applicationContext;
+
     private CompareControl compareControl;
 
     @Override

@@ -2,16 +2,18 @@ package io.github.jhipster.loaded;
 
 import io.github.jhipster.loaded.reloader.Reloader;
 import io.github.jhipster.loaded.reloader.type.*;
-import org.apache.commons.lang.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.data.repository.NoRepositoryBean;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import javax.persistence.Entity;
 import java.util.ArrayList;
@@ -22,6 +24,12 @@ import java.util.List;
  * This thread stores classes to reload, to reload them all in one batch.
  */
 public class JHipsterReloaderThread implements Runnable {
+
+    private static final boolean jpaPresent =
+            ClassUtils.isPresent("javax.persistence.Entity", JHipsterReloaderThread.class.getClassLoader());
+
+    private static final boolean mongoDBPresent =
+            ClassUtils.isPresent("com.mongodb.Mongo", JHipsterReloaderThread.class.getClassLoader());
 
     private static Logger log = LoggerFactory.getLogger(JHipsterReloaderThread.class);
 
@@ -90,6 +98,7 @@ public class JHipsterReloaderThread implements Runnable {
 
             boolean startReloading = false;
             if (AnnotationUtils.findAnnotation(clazz, Repository.class) != null ||
+                    AnnotationUtils.findAnnotation(clazz, NoRepositoryBean.class) != null ||
                     ClassUtils.isAssignable(clazz, org.springframework.data.repository.Repository.class)) {
                 log.trace("{} is a Spring Repository", typename);
                 repositories.add(clazz);
@@ -109,8 +118,13 @@ public class JHipsterReloaderThread implements Runnable {
                 startReloading = true;
             } else if (typename.startsWith(domainPackageName)) {
                 log.trace("{} is in the JPA package, checking if it is an entity", typename);
-                if (AnnotationUtils.findAnnotation(clazz, Entity.class) != null) {
+                if (jpaPresent && AnnotationUtils.findAnnotation(clazz, Entity.class) != null) {
                     log.trace("{} is a JPA Entity", typename);
+                    entities.add(clazz);
+                    startReloading = true;
+                }
+                if (mongoDBPresent && AnnotationUtils.findAnnotation(clazz, Document.class) != null) {
+                    log.trace("{} is a MongoDB Entity", typename);
                     entities.add(clazz);
                     startReloading = true;
                 }
