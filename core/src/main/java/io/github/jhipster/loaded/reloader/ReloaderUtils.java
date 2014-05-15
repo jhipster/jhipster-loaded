@@ -18,19 +18,22 @@ import java.lang.annotation.Annotation;
 public class ReloaderUtils {
 
     public static Annotation getSpringClassAnnotation(Class clazz) {
-        Annotation classAnnotation = AnnotationUtils.findAnnotation(clazz, Component.class);
+        Annotation classAnnotation = null;
 
-        if (classAnnotation == null) {
+        if (AnnotationUtils.isAnnotationDeclaredLocally(Controller.class, clazz)) {
             classAnnotation = AnnotationUtils.findAnnotation(clazz, Controller.class);
         }
-        if (classAnnotation == null) {
+        if (AnnotationUtils.isAnnotationDeclaredLocally(RestController.class, clazz)) {
             classAnnotation = AnnotationUtils.findAnnotation(clazz, RestController.class);
         }
-        if (classAnnotation == null) {
+        if (AnnotationUtils.isAnnotationDeclaredLocally(Service.class, clazz)) {
             classAnnotation = AnnotationUtils.findAnnotation(clazz, Service.class);
         }
-        if (classAnnotation == null) {
+        if (AnnotationUtils.isAnnotationDeclaredLocally(Repository.class, clazz)) {
             classAnnotation = AnnotationUtils.findAnnotation(clazz, Repository.class);
+        }
+        if (AnnotationUtils.isAnnotationDeclaredLocally(Component.class, clazz)) {
+            classAnnotation = AnnotationUtils.findAnnotation(clazz, Component.class);
         }
 
         return classAnnotation;
