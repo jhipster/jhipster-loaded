@@ -1,6 +1,7 @@
 package io.github.jhipster.loaded.reloader;
 
 import io.github.jhipster.loaded.hibernate.JHipsterEntityManagerFactoryWrapper;
+import io.github.jhipster.loaded.reloader.liquibase.CustomXMLChangeLogSerializer;
 import io.github.jhipster.loaded.reloader.type.EntityReloaderType;
 import io.github.jhipster.loaded.reloader.type.ReloaderType;
 import liquibase.Liquibase;
@@ -15,7 +16,6 @@ import liquibase.ext.hibernate.database.HibernateSpringDatabase;
 import liquibase.ext.hibernate.database.connection.HibernateConnection;
 import liquibase.integration.spring.SpringLiquibase;
 import liquibase.resource.ClassLoaderResourceAccessor;
-import liquibase.serializer.core.yaml.YamlChangeLogSerializer;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.core.*;
 import org.apache.commons.io.FilenameUtils;
@@ -181,11 +181,7 @@ public class LiquibaseReloader implements Reloader {
                 @Override
                 protected void performUpdate(Liquibase liquibase) throws LiquibaseException {
                     // Override to be able to add
-
-
-
-
-
+                    liquibase.setChangeLogParameter("logicalFilePath", "logicalFilePath");
                     super.performUpdate(liquibase);
                 }
             };
@@ -341,8 +337,8 @@ public class LiquibaseReloader implements Reloader {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintStream printStream = new PrintStream(out, true, "UTF-8");
         diffToChangeLog.setChangeSetAuthor("jhipster");
-        final YamlChangeLogSerializer changeLogSerializer = new YamlChangeLogSerializer();
-        diffToChangeLog.print(printStream, changeLogSerializer);
+        CustomXMLChangeLogSerializer customXMLChangeLogSerializer = new CustomXMLChangeLogSerializer();
+        diffToChangeLog.print(printStream, customXMLChangeLogSerializer);
         printStream.close();
         return out.toString("UTF-8");
     }
