@@ -15,6 +15,7 @@ import liquibase.ext.hibernate.database.HibernateSpringDatabase;
 import liquibase.ext.hibernate.database.connection.HibernateConnection;
 import liquibase.integration.spring.SpringLiquibase;
 import liquibase.resource.ClassLoaderResourceAccessor;
+import liquibase.serializer.core.yaml.YamlChangeLogSerializer;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.core.*;
 import org.apache.commons.io.FilenameUtils;
@@ -176,7 +177,18 @@ public class LiquibaseReloader implements Reloader {
             rewriteMasterFiles();
 
             // Execute the new changelog on the database
-            SpringLiquibase springLiquibase = new SpringLiquibase();
+            SpringLiquibase springLiquibase = new SpringLiquibase() {
+                @Override
+                protected void performUpdate(Liquibase liquibase) throws LiquibaseException {
+                    // Override to be able to add
+
+
+
+
+
+                    super.performUpdate(liquibase);
+                }
+            };
             springLiquibase.setResourceLoader(new FileSystemResourceLoader());
             springLiquibase.setDataSource(dataSource);
             springLiquibase.setChangeLog("file:" + changelogFile.getAbsolutePath());
@@ -329,7 +341,8 @@ public class LiquibaseReloader implements Reloader {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintStream printStream = new PrintStream(out, true, "UTF-8");
         diffToChangeLog.setChangeSetAuthor("jhipster");
-        diffToChangeLog.print(printStream);
+        final YamlChangeLogSerializer changeLogSerializer = new YamlChangeLogSerializer();
+        diffToChangeLog.print(printStream, changeLogSerializer);
         printStream.close();
         return out.toString("UTF-8");
     }
