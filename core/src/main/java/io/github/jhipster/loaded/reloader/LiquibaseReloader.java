@@ -279,11 +279,20 @@ public class LiquibaseReloader implements Reloader {
     private void ignoreDatabaseJHipsterTables(DiffResult diffResult)
             throws Exception {
 
+        List<String> jhipsterTables = new ArrayList<>();
+        jhipsterTables.add("HIBERNATE_SEQUENCES");
+
+        final String excludeTables = applicationContext.getEnvironment().getProperty("hotReload.liquibase.excludeTables", "");
+
+        if (StringUtils.isNotEmpty(excludeTables)) {
+            jhipsterTables.addAll(Arrays.asList(excludeTables.toUpperCase().split(",")));
+        }
+
         Set<Table> unexpectedTables = diffResult
                 .getUnexpectedObjects(Table.class);
 
         for (Table table : unexpectedTables) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(table.getName())) {
+            if (jhipsterTables.contains(table.getName().toUpperCase().toUpperCase())) {
                diffResult.getUnexpectedObjects().remove(table);
             }
         }
@@ -291,43 +300,43 @@ public class LiquibaseReloader implements Reloader {
                 .getMissingObjects(Table.class);
 
         for (Table table : missingTables) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(table.getName())) {
+            if (jhipsterTables.contains(table.getName().toUpperCase())) {
                 diffResult.getMissingObjects().remove(table);
             }
         }
         Set<Column> unexpectedColumns = diffResult.getUnexpectedObjects(Column.class);
         for (Column column : unexpectedColumns) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(column.getRelation().getName())) {
+            if (jhipsterTables.contains(column.getRelation().getName().toUpperCase())) {
                 diffResult.getUnexpectedObjects().remove(column);
             }
         }
         Set<Column> missingColumns = diffResult.getMissingObjects(Column.class);
         for (Column column : missingColumns) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(column.getRelation().getName())) {
+            if (jhipsterTables.contains(column.getRelation().getName().toUpperCase())) {
                 diffResult.getMissingObjects().remove(column);
             }
         }
         Set<Index> unexpectedIndexes = diffResult.getUnexpectedObjects(Index.class);
         for (Index index : unexpectedIndexes) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(index.getTable().getName())) {
+            if (jhipsterTables.contains(index.getTable().getName().toUpperCase())) {
                 diffResult.getUnexpectedObjects().remove(index);
             }
         }
         Set<Index> missingIndexes = diffResult.getMissingObjects(Index.class);
         for (Index index : missingIndexes) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(index.getTable().getName())) {
+            if (jhipsterTables.contains(index.getTable().getName().toUpperCase())) {
                 diffResult.getMissingObjects().remove(index);
             }
         }
         Set<PrimaryKey> unexpectedPrimaryKeys = diffResult.getUnexpectedObjects(PrimaryKey.class);
         for (PrimaryKey primaryKey : unexpectedPrimaryKeys) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(primaryKey.getTable().getName())) {
+            if (jhipsterTables.contains(primaryKey.getTable().getName().toUpperCase())) {
                 diffResult.getUnexpectedObjects().remove(primaryKey);
             }
         }
         Set<PrimaryKey> missingPrimaryKeys = diffResult.getMissingObjects(PrimaryKey.class);
         for (PrimaryKey primaryKey : missingPrimaryKeys) {
-            if ("HIBERNATE_SEQUENCES".equalsIgnoreCase(primaryKey.getTable().getName())) {
+            if (jhipsterTables.contains(primaryKey.getTable().getName().toUpperCase())) {
                 diffResult.getMissingObjects().remove(primaryKey);
             }
         }

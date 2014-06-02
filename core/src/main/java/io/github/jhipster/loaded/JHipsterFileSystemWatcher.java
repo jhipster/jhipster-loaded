@@ -185,7 +185,7 @@ public class JHipsterFileSystemWatcher implements FileSystemWatcher, Runnable {
                         callFileWatcherListerners(parentFolder, aFile.toPath(), kind);
                     }
                 } else {
-                    callFileWatcherListerners(dir.toString(), child, kind);
+                    callFileWatcherListerners(dir.toString().replace(File.separator,"/"), child, kind);
                 }
             }
 
