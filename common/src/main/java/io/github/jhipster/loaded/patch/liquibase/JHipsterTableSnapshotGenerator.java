@@ -1,6 +1,5 @@
 package io.github.jhipster.loaded.patch.liquibase;
 
-import liquibase.datatype.DataTypeFactory;
 import liquibase.datatype.LiquibaseDataType;
 import liquibase.exception.DatabaseException;
 import liquibase.ext.hibernate.database.HibernateDatabase;
@@ -8,16 +7,14 @@ import liquibase.ext.hibernate.snapshot.HibernateSnapshotGenerator;
 import liquibase.snapshot.DatabaseSnapshot;
 import liquibase.snapshot.InvalidExampleException;
 import liquibase.structure.DatabaseObject;
-import liquibase.structure.core.*;
+import liquibase.structure.core.DataType;
+import liquibase.structure.core.Schema;
+import liquibase.structure.core.Table;
 import liquibase.util.StringUtils;
 import org.hibernate.cfg.Configuration;
-import org.hibernate.dialect.Dialect;
-import org.hibernate.engine.spi.Mapping;
-import org.hibernate.id.IdentityGenerator;
 
 import java.lang.reflect.Method;
 import java.util.Iterator;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,83 +35,84 @@ public class JHipsterTableSnapshotGenerator extends HibernateSnapshotGenerator {
 
     @Override
     protected DatabaseObject snapshotObject(DatabaseObject example, DatabaseSnapshot snapshot) throws DatabaseException, InvalidExampleException {
-        HibernateDatabase database = (HibernateDatabase) snapshot.getDatabase();
-        Configuration cfg = database.getConfiguration();
+//        HibernateDatabase database = (HibernateDatabase) snapshot.getDatabase();
+//        Configuration cfg = database.getConfiguration();
+//
+//        Dialect dialect = database.getDialect();
+//        Mapping mapping = cfg.buildMapping();
+//
+//        org.hibernate.mapping.Table hibernateTable = findHibernateTable(example, snapshot);
+//        if (hibernateTable == null) {
+//            return null;
+//        }
+//
+//        Table table = new Table().setName(hibernateTable.getName());
+//        PrimaryKey primaryKey = null;
+//        int pkColumnPosition = 0;
+//        LOG.info("Found table " + table.getName());
+//
+//        table.setSchema(example.getSchema());
+//
+//        Iterator columnIterator = hibernateTable.getColumnIterator();
+//        while (columnIterator.hasNext()) {
+//            org.hibernate.mapping.Column hibernateColumn = (org.hibernate.mapping.Column) columnIterator.next();
+//            Column column = new Column();
+//            column.setName(hibernateColumn.getName());
+//
+//            String hibernateType = hibernateColumn.getSqlType(dialect, mapping);
+//            DataType dataType = toDataType(hibernateType, hibernateColumn.getSqlTypeCode());
+//            if (dataType == null) {
+//                throw new DatabaseException("Unable to find column data type for column " + hibernateColumn.getName());
+//            }
+//
+//            column.setType(dataType);
+//            LOG.info("Found column " + column.getName() + " " + column.getType().toString());
+//
+//            column.setRemarks(hibernateColumn.getComment());
+//            column.setDefaultValue(hibernateColumn.getDefaultValue());
+//            column.setNullable(hibernateColumn.isNullable());
+//            column.setCertainDataType(false);
+//
+//            org.hibernate.mapping.PrimaryKey hibernatePrimaryKey = hibernateTable.getPrimaryKey();
+//            if (hibernatePrimaryKey != null) {
+//                boolean isPrimaryKeyColumn = false;
+//                //noinspection unchecked
+//                for (org.hibernate.mapping.Column pkColumn : (List<org.hibernate.mapping.Column>) hibernatePrimaryKey.getColumns()) {
+//                    if (pkColumn.getName().equals(hibernateColumn.getName())) {
+//                        isPrimaryKeyColumn = true;
+//                        break;
+//                    }
+//                }
+//
+//                if (isPrimaryKeyColumn) {
+//                    if (primaryKey == null) {
+//                        primaryKey = new PrimaryKey();
+//                        primaryKey.setName(hibernatePrimaryKey.getName());
+//                    }
+//                    primaryKey.addColumnName(pkColumnPosition++, column.getName());
+//
+//                    LiquibaseDataType liquibaseDataType = DataTypeFactory
+//							.getInstance().from(column.getType());
+//					// only columns types supporting auto increment -
+//					// DataTypeFactory
+//					if (isAutoIncrement(liquibaseDataType)) {
+//
+//						if (dialect.getNativeIdentifierGeneratorClass().equals(
+//								IdentityGenerator.class)) {
+//							column.setAutoIncrementInformation(new Column.AutoIncrementInformation());
+//						}
+//					}
+//                }
+//            }
+//            column.setRelation(table);
+//
+//            table.setPrimaryKey(primaryKey);
+//            table.getColumns().add(column);
+//
+//        }
 
-        Dialect dialect = database.getDialect();
-        Mapping mapping = cfg.buildMapping();
-
-        org.hibernate.mapping.Table hibernateTable = findHibernateTable(example, snapshot);
-        if (hibernateTable == null) {
-            return null;
-        }
-
-        Table table = new Table().setName(hibernateTable.getName());
-        PrimaryKey primaryKey = null;
-        int pkColumnPosition = 0;
-        LOG.info("Found table " + table.getName());
-
-        table.setSchema(example.getSchema());
-
-        Iterator columnIterator = hibernateTable.getColumnIterator();
-        while (columnIterator.hasNext()) {
-            org.hibernate.mapping.Column hibernateColumn = (org.hibernate.mapping.Column) columnIterator.next();
-            Column column = new Column();
-            column.setName(hibernateColumn.getName());
-
-            String hibernateType = hibernateColumn.getSqlType(dialect, mapping);
-            DataType dataType = toDataType(hibernateType, hibernateColumn.getSqlTypeCode());
-            if (dataType == null) {
-                throw new DatabaseException("Unable to find column data type for column " + hibernateColumn.getName());
-            }
-
-            column.setType(dataType);
-            LOG.info("Found column " + column.getName() + " " + column.getType().toString());
-
-            column.setRemarks(hibernateColumn.getComment());
-            column.setDefaultValue(hibernateColumn.getDefaultValue());
-            column.setNullable(hibernateColumn.isNullable());
-            column.setCertainDataType(false);
-
-            org.hibernate.mapping.PrimaryKey hibernatePrimaryKey = hibernateTable.getPrimaryKey();
-            if (hibernatePrimaryKey != null) {
-                boolean isPrimaryKeyColumn = false;
-                //noinspection unchecked
-                for (org.hibernate.mapping.Column pkColumn : (List<org.hibernate.mapping.Column>) hibernatePrimaryKey.getColumns()) {
-                    if (pkColumn.getName().equals(hibernateColumn.getName())) {
-                        isPrimaryKeyColumn = true;
-                        break;
-                    }
-                }
-
-                if (isPrimaryKeyColumn) {
-                    if (primaryKey == null) {
-                        primaryKey = new PrimaryKey();
-                        primaryKey.setName(hibernatePrimaryKey.getName());
-                    }
-                    primaryKey.addColumnName(pkColumnPosition++, column.getName());
-
-                    LiquibaseDataType liquibaseDataType = DataTypeFactory
-							.getInstance().from(column.getType());
-					// only columns types supporting auto increment -
-					// DataTypeFactory
-					if (isAutoIncrement(liquibaseDataType)) {
-
-						if (dialect.getNativeIdentifierGeneratorClass().equals(
-								IdentityGenerator.class)) {
-							column.setAutoIncrementInformation(new Column.AutoIncrementInformation());
-						}
-					}
-                }
-            }
-            column.setRelation(table);
-
-            table.setPrimaryKey(primaryKey);
-            table.getColumns().add(column);
-
-        }
-
-        return table;
+//        return table;
+        return null;
     }
 
     protected DataType toDataType(String hibernateType, Integer sqlTypeCode) throws DatabaseException {

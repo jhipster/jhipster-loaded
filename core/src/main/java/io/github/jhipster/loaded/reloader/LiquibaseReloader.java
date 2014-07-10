@@ -22,22 +22,14 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.SuffixFileFilter;
 import org.apache.commons.lang.StringUtils;
-import org.hibernate.cfg.Configuration;
-import org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl;
-import org.hibernate.jpa.boot.spi.Bootstrap;
-import org.hibernate.service.ServiceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResourceLoader;
-import org.springframework.orm.jpa.persistenceunit.DefaultPersistenceUnitManager;
-import org.springframework.orm.jpa.persistenceunit.SmartPersistenceUnitInfo;
-import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.stereotype.Component;
 
-import javax.persistence.spi.PersistenceUnitInfo;
 import javax.sql.DataSource;
 import java.io.*;
 import java.nio.file.FileSystems;
@@ -97,62 +89,20 @@ public class LiquibaseReloader implements Reloader {
 
             // Build source datasource
             DataSource dataSource = applicationContext.getBean(DataSource.class);
-            final JdbcConnection jdbcConnection = new JdbcConnection(dataSource.getConnection());
-            Database sourceDatabase = getDatabaseSource();
-            sourceDatabase.setConnection(jdbcConnection);
+            Database sourceDatabase = getSourceDatabase(dataSource);
 
-            // Build hibernate datasource
-            Database hibernateDatabase = new HibernateSpringDatabase() {
-                @Override
-                public Configuration buildConfigurationFromScanning(HibernateConnection connection) {
-                    String[] packagesToScan = connection.getPath().split(",");
-
-                    for (String packageName : packagesToScan) {
-                        log.info("Found package {}", packageName);
-                    }
-
-                    DefaultPersistenceUnitManager internalPersistenceUnitManager = new DefaultPersistenceUnitManager();
-
-                    internalPersistenceUnitManager.setPackagesToScan(packagesToScan);
-
-                    String dialectName = connection.getProperties().getProperty("dialect", null);
-                    if (dialectName == null) {
-                        throw new IllegalArgumentException("A 'dialect' has to be specified.");
-                    }
-                    log.info("Found dialect {}", dialectName);
-
-                    internalPersistenceUnitManager.preparePersistenceUnitInfos();
-                    PersistenceUnitInfo persistenceUnitInfo = internalPersistenceUnitManager.obtainDefaultPersistenceUnitInfo();
-                    HibernateJpaVendorAdapter jpaVendorAdapter = new HibernateJpaVendorAdapter();
-                    jpaVendorAdapter.setDatabasePlatform(dialectName);
-
-                    Map<String, Object> jpaPropertyMap = jpaVendorAdapter.getJpaPropertyMap();
-                    jpaPropertyMap.put("hibernate.archive.autodetection", "false");
-
-                    if (persistenceUnitInfo instanceof SmartPersistenceUnitInfo) {
-                        ((SmartPersistenceUnitInfo) persistenceUnitInfo).setPersistenceProviderPackageName(jpaVendorAdapter.getPersistenceProviderRootPackage());
-                    }
-
-                    EntityManagerFactoryBuilderImpl builder = (EntityManagerFactoryBuilderImpl) Bootstrap.getEntityManagerFactoryBuilder(persistenceUnitInfo,
-                            jpaPropertyMap);
-
-                    ServiceRegistry serviceRegistry = builder.buildServiceRegistry();
-                    return builder.buildHibernateConfiguration(serviceRegistry);
-                }
-            };
-            hibernateDatabase.setDefaultSchemaName(getDefaultSchemaName());
-            hibernateDatabase.setDefaultCatalogName(getDefaultCatalogName());
+            Database hibernateDatabase = new HibernateSpringDatabase();
             hibernateDatabase.setConnection(new JdbcConnection(
                     new HibernateConnection("hibernate:spring:" + packagesToScan + "?dialect=" + applicationContext.getEnvironment().getProperty("spring.jpa.database-platform"))));
 
             // Use liquibase to do a difference of schema between hibernate and database
-            Liquibase liquibase = new Liquibase(null, new ClassLoaderResourceAccessor(), jdbcConnection);
+            Liquibase liquibase = new Liquibase((String) null, new ClassLoaderResourceAccessor(), sourceDatabase);
 
             // Retrieve the difference
             DiffResult diffResult = liquibase.diff(hibernateDatabase, sourceDatabase, compareControl);
 
             // Build the changelogs if any changes
-            DiffToChangeLog diffToChangeLog = new DiffToChangeLog(diffResult, new DiffOutputControl());
+            DiffToChangeLog diffToChangeLog = new DiffToChangeLog(diffResult, new DiffOutputControl(false, false, true));
 
             // Ignore the database changeLog table
             ignoreDatabaseChangeLogTable(diffResult);
@@ -399,7 +349,7 @@ public class LiquibaseReloader implements Reloader {
     /**
      * @return the source database
      */
-    private Database getDatabaseSource() {
+    private Database getSourceDatabase(DataSource dataSource) {
         String currentDatabase = applicationContext.getEnvironment().getProperty("spring.jpa.database");
 
         String liquibaseDatabase;
@@ -419,21 +369,15 @@ public class LiquibaseReloader implements Reloader {
         }
 
         try {
-            return (Database) Class.forName(liquibaseDatabase).newInstance();
+            Database database = (Database) Class.forName(liquibaseDatabase).newInstance();
+            database.setConnection(new JdbcConnection(dataSource.getConnection()));
+
+            return database;
         } catch (Exception e) {
             log.error("Failed to instanciate the liquibase database: {}", liquibaseDatabase);
             throw new IllegalStateException("Failed to instanciate the liquibase database: " + liquibaseDatabase);
         }
     }
-
-    public String getDefaultSchemaName() {
-        return applicationContext.getEnvironment().getProperty("hotReload.liquibase.defaultSchema", "");
-    }
-
-    public String getDefaultCatalogName() {
-        return applicationContext.getEnvironment().getProperty("hotReload.liquibase.defaultCatalogName", "");
-    }
-
 
     /**
      * The master.xml file will be rewritten to include the new changelogs
@@ -457,7 +401,7 @@ public class LiquibaseReloader implements Reloader {
             IOUtils.write(begin, fileOutputStream);
 
             // Writer the changelogs
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
 
             for (File allChangelog : allChangelogs) {
                 String fileName = allChangelog.getName();

@@ -56,17 +56,17 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
             }
 
 
-            // Change the super class from TableSnapshotGenerator to JHipsterTableSnapshotGenerator.
-            // Quick fix for a NPE. @see JHipsterTableSnapshotGenerator
-            if (slashedClassName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator")) {
-                CtClass ctClass = classPool.get("liquibase.ext.hibernate.snapshot.TableSnapshotGenerator");
-                ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.patch.liquibase.JHipsterTableSnapshotGenerator"));
-                CtMethod ctMethod = ctClass.getDeclaredMethod("snapshotObject");
-                ctMethod.setBody("{ return super.snapshotObject($1, $2);}");
-                bytes =  ctClass.toBytecode();
-                ctClass.defrost();
-            }
-
+//            // Change the super class from TableSnapshotGenerator to JHipsterTableSnapshotGenerator.
+//            // Quick fix for a NPE. @see JHipsterTableSnapshotGenerator
+//            if (slashedClassName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator")) {
+//                CtClass ctClass = classPool.get("liquibase.ext.hibernate.snapshot.TableSnapshotGenerator");
+//                ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.patch.liquibase.JHipsterTableSnapshotGenerator"));
+//                CtMethod ctMethod = ctClass.getDeclaredMethod("snapshotObject");
+//                ctMethod.setBody("{ return super.snapshotObject($1, $2);}");
+//                bytes =  ctClass.toBytecode();
+//                ctClass.defrost();
+//            }
+//
             // Add JHipsterPersistenceProvider class as the super class.
             // It will wrap the Hibernate entityManagerFactory to be able to reload it.
             if (slashedClassName.equals("org/hibernate/jpa/HibernatePersistenceProvider")) {
