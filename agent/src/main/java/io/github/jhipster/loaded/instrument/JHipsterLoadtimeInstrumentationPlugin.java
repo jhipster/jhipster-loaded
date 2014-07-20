@@ -8,8 +8,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *  Instrument the classes loaded at runtime.
- *  Be able to change the default behavior of a class before adding it in the ClassLoader
+ * Instrument the classes loaded at runtime.
+ * Be able to change the default behavior of a class before adding it in the ClassLoader
  */
 public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrumentationPlugin {
 
@@ -18,12 +18,12 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
     @Override
     public boolean accept(String slashedTypeName, ClassLoader classLoader, ProtectionDomain protectionDomain, byte[] bytes) {
         return slashedTypeName != null && (slashedTypeName.equals("org/springframework/security/access/method/DelegatingMethodSecurityMetadataSource") ||
-               slashedTypeName.equals("org/springframework/aop/framework/AdvisedSupport") ||
-               slashedTypeName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator") ||
-               slashedTypeName.equals("org/hibernate/jpa/HibernatePersistenceProvider") ||
-               slashedTypeName.equals("org/hibernate/engine/internal/CacheHelper") ||
-               slashedTypeName.equals("org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor") ||
-               slashedTypeName.equals("org/springframework/core/LocalVariableTableParameterNameDiscoverer"));
+                slashedTypeName.equals("org/springframework/aop/framework/AdvisedSupport") ||
+                slashedTypeName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator") ||
+                slashedTypeName.equals("org/hibernate/jpa/HibernatePersistenceProvider") ||
+                slashedTypeName.equals("org/hibernate/engine/internal/CacheHelper") ||
+                slashedTypeName.equals("org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor") ||
+                slashedTypeName.equals("org/springframework/core/LocalVariableTableParameterNameDiscoverer"));
     }
 
     @Override
@@ -38,8 +38,10 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
                 CtClass ctClass = classPool.get("org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource");
                 CtMethod ctMethod = ctClass.getDeclaredMethod("getAttributes");
                 ctMethod.insertBefore("{synchronized (attributeCache) { attributeCache.clear();} }");
-                bytes =  ctClass.toBytecode();
+                bytes = ctClass.toBytecode();
                 ctClass.defrost();
+
+                log.fine("Patch - Rewrite org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource.getAttributes() method");
             }
 
             // The AdvisedSupport is in charge to manage the advised associated to a method.
@@ -51,8 +53,23 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
                 CtClass ctClass = classPool.get("org.springframework.aop.framework.AdvisedSupport");
                 CtMethod ctMethod = ctClass.getDeclaredMethod("getInterceptorsAndDynamicInterceptionAdvice");
                 ctMethod.insertBefore("{ adviceChanged(); }");
-                bytes =  ctClass.toBytecode();
+                bytes = ctClass.toBytecode();
                 ctClass.defrost();
+
+                log.fine("Patch - Rewrite org.springframework.aop.framework.AdvisedSupport.getInterceptorsAndDynamicInterceptionAdvice() method");
+            }
+
+            // Change the super class from TableSnapshotGenerator to JHipsterTableSnapshotGenerator.
+            // Quick fix for a NPE. @see JHipsterTableSnapshotGenerator
+            if (slashedClassName.equals("liquibase/ext/hibernate/snapshot/TableSnapshotGenerator")) {
+                CtClass ctClass = classPool.get("liquibase.ext.hibernate.snapshot.TableSnapshotGenerator");
+                ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.patch.liquibase.JHipsterTableSnapshotGenerator"));
+                CtMethod ctMethod = ctClass.getDeclaredMethod("snapshotObject");
+                ctMethod.setBody("{ return super.snapshotObject($1, $2);}");
+                bytes = ctClass.toBytecode();
+                ctClass.defrost();
+
+                log.fine("Patch - Rewrite liquibase.ext.hibernate.snapshot.TableSnapshotGenerator.snapshotObject() method");
             }
 
             // Add JHipsterPersistenceProvider class as the super class.
@@ -62,8 +79,10 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
                 ctClass.setSuperclass(classPool.get("io.github.jhipster.loaded.hibernate.JHipsterPersistenceProvider"));
                 CtMethod ctMethod = ctClass.getDeclaredMethod("createContainerEntityManagerFactory");
                 ctMethod.setBody("{ return super.createContainerEntityManagerFactory($1, $2); }");
-                bytes =  ctClass.toBytecode();
+                bytes = ctClass.toBytecode();
                 ctClass.defrost();
+
+                log.fine("Patch - Rewrite org.hibernate.jpa.HibernatePersistenceProvider.createContainerEntityManagerFactory() method");
             }
 
 
@@ -80,6 +99,8 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
                 ctMethod.setBody("{ return null; }");
                 bytes = ctClass.toBytecode();
                 ctClass.defrost();
+
+                log.fine("Patch - Rewrite org.hibernate.engine.internal.CacheHelper.fromSharedCache() method");
             }
 
             // Make TransactionalRepositoryProxyPostProcessor public to use by SpringLoader to initialize
@@ -87,8 +108,10 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
             if (slashedClassName.equals("org/springframework/data/repository/core/support/TransactionalRepositoryProxyPostProcessor")) {
                 CtClass ctClass = classPool.get("org.springframework.data.repository.core.support.TransactionalRepositoryProxyPostProcessor");
                 ctClass.setModifiers(Modifier.PUBLIC);
-                bytes =  ctClass.toBytecode();
+                bytes = ctClass.toBytecode();
                 ctClass.defrost();
+
+                log.fine("Patch - Make org.springframework.data.repository.core.support.TransactionalRepositoryProxyPostProcessor class PUBLIC");
             }
 
             // The parameters are cached and when a class is reloaded, the map used for the caching is not able to
@@ -100,8 +123,10 @@ public class JHipsterLoadtimeInstrumentationPlugin implements LoadtimeInstrument
                 ctMethod.insertBefore("{ this.parameterNamesCache.clear(); }");
                 ctMethod = ctClass.getDeclaredMethod("getParameterNames", new CtClass[]{classPool.get("java.lang.reflect.Constructor")});
                 ctMethod.insertBefore("{ this.parameterNamesCache.clear(); }");
-                bytes =  ctClass.toBytecode();
+                bytes = ctClass.toBytecode();
                 ctClass.defrost();
+
+                log.fine("Patch - Clear cache org.springframework.core.LocalVariableTableParameterNameDiscoverer");
             }
         } catch (Exception e) {
             log.log(Level.SEVERE, "Failed to modify the DelegatingMethodSecurityMetadataSource class", e);

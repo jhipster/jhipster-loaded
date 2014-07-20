@@ -1,18 +1,20 @@
 package io.github.jhipster.loaded.reloader;
 
 import io.github.jhipster.loaded.hibernate.JHipsterEntityManagerFactoryWrapper;
+import io.github.jhipster.loaded.patch.liquibase.JhipsterHibernateSpringDatabase;
 import io.github.jhipster.loaded.reloader.liquibase.CustomXMLChangeLogSerializer;
 import io.github.jhipster.loaded.reloader.type.EntityReloaderType;
 import io.github.jhipster.loaded.reloader.type.ReloaderType;
 import liquibase.Liquibase;
 import liquibase.database.Database;
+import liquibase.database.ObjectQuotingStrategy;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.diff.DiffResult;
 import liquibase.diff.compare.CompareControl;
 import liquibase.diff.output.DiffOutputControl;
 import liquibase.diff.output.changelog.DiffToChangeLog;
+import liquibase.exception.DatabaseException;
 import liquibase.exception.LiquibaseException;
-import liquibase.ext.hibernate.database.HibernateSpringDatabase;
 import liquibase.ext.hibernate.database.connection.HibernateConnection;
 import liquibase.integration.spring.SpringLiquibase;
 import liquibase.resource.ClassLoaderResourceAccessor;
@@ -84,19 +86,25 @@ public class LiquibaseReloader implements Reloader {
     @Override
     public void reload() {
         log.debug("Hot reloading JPA & Liquibase classes");
+        Database hibernateDatabase = null;
+        Database sourceDatabase = null;
+
         try {
             final String packagesToScan = applicationContext.getEnvironment().getProperty("hotReload.package.domain");
 
             // Build source datasource
             DataSource dataSource = applicationContext.getBean(DataSource.class);
-            Database sourceDatabase = getSourceDatabase(dataSource);
+            sourceDatabase = getSourceDatabase(dataSource);
+            sourceDatabase.setObjectQuotingStrategy(ObjectQuotingStrategy.QUOTE_ALL_OBJECTS);
 
-            Database hibernateDatabase = new HibernateSpringDatabase();
+            // Build hibernate datasource - used as a reference
+            hibernateDatabase = new JhipsterHibernateSpringDatabase(sourceDatabase.getDefaultCatalogName(), sourceDatabase.getLiquibaseSchemaName());
+            hibernateDatabase.setObjectQuotingStrategy(ObjectQuotingStrategy.QUOTE_ALL_OBJECTS);
             hibernateDatabase.setConnection(new JdbcConnection(
                     new HibernateConnection("hibernate:spring:" + packagesToScan + "?dialect=" + applicationContext.getEnvironment().getProperty("spring.jpa.database-platform"))));
 
             // Use liquibase to do a difference of schema between hibernate and database
-            Liquibase liquibase = new Liquibase((String) null, new ClassLoaderResourceAccessor(), sourceDatabase);
+            Liquibase liquibase = new Liquibase(null, new ClassLoaderResourceAccessor(), sourceDatabase);
 
             // Retrieve the difference
             DiffResult diffResult = liquibase.diff(hibernateDatabase, sourceDatabase, compareControl);
@@ -131,7 +139,7 @@ public class LiquibaseReloader implements Reloader {
                 @Override
                 protected void performUpdate(Liquibase liquibase) throws LiquibaseException {
                     // Override to be able to add
-                    liquibase.setChangeLogParameter("logicalFilePath", "logicalFilePath");
+                    liquibase.setChangeLogParameter("logicalFilePath", "none");
                     super.performUpdate(liquibase);
                 }
             };
@@ -151,6 +159,23 @@ public class LiquibaseReloader implements Reloader {
             entitiesToReload.clear();
         } catch (Exception e) {
             log.error("Failed to generate the db-changelog.xml file", e);
+        } finally {
+            // close the database
+            if (sourceDatabase != null) {
+                try {
+                    sourceDatabase.close();
+                } catch (DatabaseException e) {
+                    log.error("Failed to close the source database", e);
+                }
+            }
+
+            if (hibernateDatabase != null) {
+                try {
+                    hibernateDatabase.close();
+                } catch (DatabaseException e) {
+                    log.error("Failed to close the reference database", e);
+                }
+            }
         }
     }
 
@@ -302,22 +327,15 @@ public class LiquibaseReloader implements Reloader {
         return out.toString("UTF-8");
     }
 
-    private void initCompareControl() {
+    protected void initCompareControl() {
         Set<Class<? extends DatabaseObject>> typesToInclude = new HashSet<>();
         typesToInclude.add(Table.class);
         typesToInclude.add(Column.class);
-        typesToInclude.add(PrimaryKey.class);
-        typesToInclude.add(ForeignKey.class);
-        typesToInclude.add(UniqueConstraint.class);
-        typesToInclude.add(Sequence.class);
         compareControl = new CompareControl(typesToInclude);
         compareControl.addSuppressedField(Table.class, "remarks");
         compareControl.addSuppressedField(Column.class, "remarks");
         compareControl.addSuppressedField(Column.class, "certainDataType");
         compareControl.addSuppressedField(Column.class, "autoIncrementInformation");
-        compareControl.addSuppressedField(ForeignKey.class, "deleteRule");
-        compareControl.addSuppressedField(ForeignKey.class, "updateRule");
-        compareControl.addSuppressedField(Index.class, "unique");
     }
 
     /**
@@ -374,8 +392,7 @@ public class LiquibaseReloader implements Reloader {
 
             return database;
         } catch (Exception e) {
-            log.error("Failed to instanciate the liquibase database: {}", liquibaseDatabase);
-            throw new IllegalStateException("Failed to instanciate the liquibase database: " + liquibaseDatabase);
+            throw new IllegalStateException("Failed to instanciate the liquibase database: " + liquibaseDatabase, e);
         }
     }
 

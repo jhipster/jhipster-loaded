@@ -28,8 +28,8 @@
         <servlet-api.version>3.0.1</servlet-api.version>
         <javassist.version>3.18.0-GA</javassist.version>
         <jackson.version>2.3.1</jackson.version>
-        <liquibase.version>3.2.0</liquibase.version>
-        <liquibase-hibernate4.version>3.4</liquibase-hibernate4.version>
+        <liquibase.version>3.0.8</liquibase.version>
+        <liquibase-hibernate4.version>3.3</liquibase-hibernate4.version>
         <commons-lang.version>2.6</commons-lang.version>
         <commons-io.version>2.4</commons-io.version>
         <slf4j.version>1.7.6</slf4j.version>
@@ -195,6 +195,15 @@
             <id>release</id>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.1</version>
+                        <configuration>
+                            <source>${java.version}</source>
+                            <target>${java.version}</target>
+                        </configuration>
+                    </plugin>
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
