@@ -23,7 +23,7 @@
         <spring-data-jpa.version>1.5.0.RELEASE</spring-data-jpa.version>
         <spring-data-mongodb.version>1.4.1.RELEASE</spring-data-mongodb.version>
         <spring-boot.version>1.0.0.RC4</spring-boot.version>
-        <hibernate-jpa.version>1.0.0.FINAL</hibernate-jpa.version>
+        <hibernate-jpa.version>1.0.0.Final</hibernate-jpa.version>
 
         <servlet-api.version>3.0.1</servlet-api.version>
         <javassist.version>3.18.0-GA</javassist.version>
