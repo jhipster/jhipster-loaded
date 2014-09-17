@@ -408,6 +408,14 @@ public class LiquibaseReloader implements Reloader {
 
             final File[] allChangelogs = changeLogFolder.listFiles((FileFilter) new SuffixFileFilter(".xml"));
 
+            // sort files by name as File.list does NOT "guarantee that the name strings in the resulting array will appear in any specific order"
+            Arrays.sort(allChangelogs, new Comparator<File>() {
+            	@Override
+            	public int compare(File f1, File f2) {
+            		return f1.getName().compareTo(f2.getName());
+            	}
+            });
+            
             String begin = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                     "<databaseChangeLog\n" +
                     "        xmlns=\"http://www.liquibase.org/xml/ns/dbchangelog\"\n" +
