@@ -6,6 +6,7 @@ import io.github.jhipster.loaded.reloader.liquibase.CustomXMLChangeLogSerializer
 import io.github.jhipster.loaded.reloader.type.EntityReloaderType;
 import io.github.jhipster.loaded.reloader.type.ReloaderType;
 import liquibase.Liquibase;
+import liquibase.changelog.DatabaseChangeLog;
 import liquibase.database.Database;
 import liquibase.database.ObjectQuotingStrategy;
 import liquibase.database.jvm.JdbcConnection;
@@ -31,7 +32,6 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResourceLoader;
 import org.springframework.stereotype.Component;
-
 import javax.sql.DataSource;
 import java.io.*;
 import java.nio.file.FileSystems;
@@ -104,7 +104,7 @@ public class LiquibaseReloader implements Reloader {
                     new HibernateConnection("hibernate:spring:" + packagesToScan + "?dialect=" + applicationContext.getEnvironment().getProperty("spring.jpa.database-platform"))));
 
             // Use liquibase to do a difference of schema between hibernate and database
-            Liquibase liquibase = new Liquibase(null, new ClassLoaderResourceAccessor(), sourceDatabase);
+            Liquibase liquibase = new Liquibase(new DatabaseChangeLog(), new ClassLoaderResourceAccessor(), sourceDatabase);
 
             // Retrieve the difference
             DiffResult diffResult = liquibase.diff(hibernateDatabase, sourceDatabase, compareControl);

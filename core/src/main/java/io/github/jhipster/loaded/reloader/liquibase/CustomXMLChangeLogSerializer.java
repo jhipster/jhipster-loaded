@@ -8,7 +8,6 @@ import liquibase.serializer.core.xml.XMLChangeLogSerializer;
 import liquibase.util.xml.DefaultXmlWriter;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -30,13 +29,13 @@ public class CustomXMLChangeLogSerializer extends XMLChangeLogSerializer {
         } catch (ParserConfigurationException e) {
             throw new RuntimeException(e);
         }
-        documentBuilder.setEntityResolver(new LiquibaseEntityResolver());
+        documentBuilder.setEntityResolver(new LiquibaseEntityResolver(new CustomXMLChangeLogSerializer()));
 
         Document doc = documentBuilder.newDocument();
-        Element changeLogElement = doc.createElementNS(XMLChangeLogSAXParser.getDatabaseChangeLogNameSpace(), "databaseChangeLog");
+        Element changeLogElement = doc.createElementNS("http://www.liquibase.org/xml/ns/dbchangelog", "databaseChangeLog");
 
         changeLogElement.setAttribute("logicalFilePath", "none");
-        changeLogElement.setAttribute("xmlns", XMLChangeLogSAXParser.getDatabaseChangeLogNameSpace());
+        changeLogElement.setAttribute("xmlns","http://www.liquibase.org/xml/ns/dbchangelog");
         changeLogElement.setAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
         changeLogElement.setAttribute("xsi:schemaLocation", "http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-" + XMLChangeLogSAXParser.getSchemaVersion() + ".xsd");
 

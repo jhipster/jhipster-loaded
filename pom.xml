@@ -19,17 +19,17 @@
         <java.version>1.7</java.version>
 
         <springloaded.version>1.2.1.BUILD-SNAPSHOT</springloaded.version>
-        <spring.version>4.0.5.RELEASE</spring.version>
+        <spring.version>4.0.7.RELEASE</spring.version>
         <spring-data-jpa.version>1.5.0.RELEASE</spring-data-jpa.version>
         <spring-data-mongodb.version>1.4.1.RELEASE</spring-data-mongodb.version>
-        <spring-boot.version>1.0.0.RC4</spring-boot.version>
-        <hibernate-jpa.version>1.0.0.FINAL</hibernate-jpa.version>
+        <spring-boot.version>1.1.6.RELEASE</spring-boot.version>
+        <hibernate-jpa.version>1.0.0.Final</hibernate-jpa.version>
 
         <servlet-api.version>3.0.1</servlet-api.version>
         <javassist.version>3.18.0-GA</javassist.version>
         <jackson.version>2.3.1</jackson.version>
-        <liquibase.version>3.0.8</liquibase.version>
-        <liquibase-hibernate4.version>3.3</liquibase-hibernate4.version>
+        <liquibase.version>3.2.0</liquibase.version>
+        <liquibase-hibernate4.version>3.4</liquibase-hibernate4.version>
         <commons-lang.version>2.6</commons-lang.version>
         <commons-io.version>2.4</commons-io.version>
         <slf4j.version>1.7.6</slf4j.version>
@@ -161,6 +161,12 @@
             <artifactId>liquibase-core</artifactId>
             <version>${liquibase.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.eclipse.jetty</groupId>
+                    <artifactId>jetty-servlet</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.liquibase.ext</groupId>
