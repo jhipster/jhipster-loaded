@@ -21,7 +21,6 @@ import liquibase.integration.spring.SpringLiquibase;
 import liquibase.resource.ClassLoaderResourceAccessor;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.core.*;
-
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.SuffixFileFilter;
@@ -33,9 +32,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.FileSystemResourceLoader;
 import org.springframework.stereotype.Component;
-
 import javax.sql.DataSource;
-
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.util.*;
