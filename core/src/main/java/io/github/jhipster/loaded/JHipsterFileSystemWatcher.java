@@ -86,6 +86,9 @@ public class JHipsterFileSystemWatcher implements FileSystemWatcher, Runnable {
                 public void run() {
                     JHipsterFileSystemWatcher.isStarted = false;
                     try {
+                        // Interrupt the thread which should interrupt the blocking wait calls
+                        // on the watcher queue.
+                        thread.interrupt();
                         thread.join();
                     } catch (InterruptedException e) {
                         log.error("Failed during the JVM shutdown", e);
